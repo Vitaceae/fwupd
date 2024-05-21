@@ -1,0 +1,4 @@
+[HIDRAW\VEN_248A&DEV_881D]
+Plugin = telink
+GType = FuTelinkConfig
+TelinkBootType = Beta
