@@ -316,7 +316,8 @@ fu_telink_config_init(FuTelinkConfig *self)
     self->modules = g_ptr_array_new_with_free_func((GDestroyNotify)fu_telink_config_module_free);
 
     fu_device_set_vendor(FU_DEVICE(self), "Telink");
-    fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
+    //todo: FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD or FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD
+    fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE | FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD);
     fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_QUAD); //AA.BB.CC.DD
     fu_device_add_protocol(FU_DEVICE(self), "com.telink.dfu"); //todo: what for?
     fu_device_retry_set_delay(FU_DEVICE(self), FU_TELINK_CONFIG_RETRY_INTERVAL);
