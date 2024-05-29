@@ -11,11 +11,15 @@
 #include <linux/input.h>
 #endif
 #include <fwupdplugin.h>
+#include "fu-telink-common.h"
 #include "fu-telink-config.h"
-#include "fu-telink-firmware.h"
+#include "fu-telink-archive.h"
 
-#define TELINK_DEVEL                     0
-#define FU_TELINK_CONFIG_RETRY_INTERVAL     50 //ms
+#define TELINK_DEVEL                    0
+#define FU_TELINK_CONFIG_RETRY_INTERVAL 50 //ms
+#define TELINK_HWID_LEN                 8
+#define REPORT_LEN                      30
+#define REPORT_DATA_LEN                 (REPORT_LEN - 5)
 
 typedef enum {
     DFU_STATE_INACTIVE,
@@ -81,11 +85,11 @@ fu_telink_config_probe(FuDevice *device, GError **error)
 {
     /* FuUdevDevice->probe */
     if (!FU_DEVICE_CLASS(fu_telink_config_parent_class)->probe(device, error)) {
-        g_debug("telink device probe error");
+        LOGE("telink device probe error");
         return FALSE;
     }
 
-    g_debug("telink device probed");
+    LOGD("start");
 
     //todo: other than hid device?
     return fu_udev_device_set_physical_id(FU_UDEV_DEVICE(device), "hid", error);
@@ -95,6 +99,9 @@ static void
 fu_telink_config_finalize(GObject *object)
 {
     FuTelinkConfig *self = FU_TELINK_CONFIG(object);
+
+    LOGD("start");
+
     g_free(self->board_name);
     g_free(self->bl_name);
     g_ptr_array_unref(self->modules);
@@ -104,6 +111,8 @@ fu_telink_config_finalize(GObject *object)
 static void
 fu_telink_config_set_progress(FuDevice *self, FuProgress *progress)
 {
+    LOGD("start");
+
     fu_progress_set_id(progress, G_STRLOC); //use the current unique address as ID
     fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1); //detach
     fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 97); //write
@@ -115,29 +124,89 @@ static gboolean
 fu_telink_config_set_quirk_kv(FuDevice *device, const gchar *key, const gchar *value, GError **error)
 {
     FuTelinkConfig *self = FU_TELINK_CONFIG(device);
+    gboolean ret = TRUE;
+
+    LOGD("start");
 
     if (g_strcmp0(key, "TelinkBootType") == 0) {
-        if (g_strcmp0(value, "Beta") == 0)
-            self->bl_name = g_strdup("Beta");
-        else if (g_strcmp0(value, "HOG") == 0)
-            self->bl_name = g_strdup("HOG");
+        if (g_strcmp0(value, "beta") == 0)
+            self->bl_name = g_strdup("beta");
+        else if (g_strcmp0(value, "otav1") == 0)
+            self->bl_name = g_strdup("otav1");
         else {
-            g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "shold be 'Beta' or 'HOG'");
-            return FALSE;
+            g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "bad TelinkBootType");
+            ret = FALSE;
         }
-        return TRUE;
     }
 
-    g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED, "quirk key not supported");
-    return FALSE;
+    if (g_strcmp0(key, "TelinkBoardType") == 0) {
+        if (g_strcmp0(value, "tlsr8278") == 0)
+            self->board_name = g_strdup("tlsr8278");
+        else if (g_strcmp0(value, "tlsr8208") == 0)
+            self->board_name = g_strdup("tlsr8208");
+        else {
+            g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "bad TelinkBoardType");
+            ret = FALSE;
+        }
+    }
+
+//    g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED, "quirk key not supported");
+    return ret;
 }
 
+#if TELINK_DEVEL == 1
+static gboolean
+fu_telink_config_get_hwid(FuTelinkConfig *self, GError **error)
+{
+    g_autofree gchar *physical_id = NULL;
+    guint8 hw_id[TELINK_HWID_LEN] = {0};
+    g_autoptr(FuTelinkConfigMsg) res = g_new0(FuTelinkConfigMsg, 1);
+
+    //todo: communicate with devcie via HID protocol to get info?
+    if (!fu_telink_config_cmd_send(...)) {
+        return FALSE;
+    }
+    if (!fu_telink_config_cmd_receive(...)) {
+        return FALSE;
+    }
+    if (!fu_memcpy_safe(hw_id, TELINK_HWID_LEN, 0, res->data, REPORT_DATA_LEN, 0, TELINK_HWID_LEN, error)) {
+        return FALSE;
+    }
+
+    /* allows to detect the single device connected via several interfaces */
+    physical_id = g_strdup_printf("%s-%02x%02x%02x%02x%02x%02x%02x%02x-%s",
+        self->board_name,
+        hw_id[0], hw_id[1], hw_id[2], hw_id[3], hw_id[4], hw_id[5], hw_id[6], hw_id[7],
+        self->bl_name);
+    fu_device_set_physical_id(FU_DEVICE(self), physical_id);
+
+    /* success */
+    return TRUE;
+}
+#endif
 
 static gboolean
 fu_telink_config_setup(FuDevice *device, GError **error)
 {
     FuTelinkConfig *self = FU_TELINK_CONFIG(device);
     g_autofree gchar *target_id = NULL;
+#if TELINK_DEVEL == 0
+    //hard-coded device info
+#if 0
+    const gchar *board_name = "board_name";
+    const gchar *bl_name = "bl_name";
+#endif
+    g_autofree gchar *phys_id = NULL;
+    guint8 hw_id[TELINK_HWID_LEN];
+    guint8 v[3] = {0x7, 0x8, 0x9};
+    g_autofree gchar *version = g_strdup_printf("%u.%u.%u", v[0], v[1], v[2]);
+
+    for (guint8 i = 0; i < TELINK_HWID_LEN; i++) {
+        hw_id[i] = i;
+    }
+#endif
+
+    LOGD("start");
 
 #if TELINK_DEVEL == 1
     /* get the board name */
@@ -151,14 +220,26 @@ fu_telink_config_setup(FuDevice *device, GError **error)
         return FALSE;
     /* set the physical id based on name, HW id and bootloader type of the board
      * to detect if the device is connected via several interfaces */
-    if (!fu_telink_config_get_hwid(self, error))
+    if (!fu_telink_config_get_hwid(self, error)) {
         return FALSE;
+    }
     /* get device info and version */
     if (!fu_telink_config_dfu_fwinfo(self, error))
         return FALSE;
     /* check if any peer is connected via this device */
     if (!fu_telink_config_add_peers(self, error))
         return FALSE;
+#else
+#if 0
+    self->bl_name = fu_common_strsafe(bl_name, strlen(bl_name));
+    self->board_name = fu_common_strsafe(board_name, strlen(board_name));
+#endif
+    phys_id = g_strdup_printf("%s-%02x%02x%02x%02x%02x%02x%02x%02x-%s",
+        self->board_name,
+        hw_id[0], hw_id[1], hw_id[2], hw_id[3], hw_id[4], hw_id[5], hw_id[6], hw_id[7],
+        self->bl_name);
+    fu_device_set_physical_id(FU_DEVICE(self), phys_id);
+    fu_device_set_version(FU_DEVICE(self), version);
 #endif
 
     /* generate the custom visible name for the device if absent */
@@ -211,7 +292,7 @@ static gboolean
 fu_telink_config_dfu_sync(FuTelinkConfig *self, FuTelinkConfigDfuInfo *dfu_info, guint8 expecting_state, GError **error)
 {
     //todo
-    g_debug("fu_telink_config_dfu_sync");
+    LOGD("start");
     return TRUE;
 }
 
@@ -219,7 +300,7 @@ static gboolean
 fu_telink_config_dfu_start(FuTelinkConfig *self, gsize img_length, guint32 img_crc, guint32 offset, GError **error)
 {
     //todo
-    g_debug("fu_telink_config_dfu_start");
+    LOGD("start");
     return TRUE;
 }
 
@@ -227,7 +308,7 @@ static gboolean
 fu_telink_config_write_firmware_blob(FuTelinkConfig *self, GBytes *blob, FuProgress *progress, GError **error)
 {
     //todo
-    g_debug("fu_telink_config_write_firmware_blob");
+    LOGD("start");
     return TRUE;
 }
 
@@ -235,7 +316,7 @@ static gboolean
 fu_telink_config_dfu_reboot(FuTelinkConfig *self, GError **error)
 {
     //todo
-    g_debug("fu_telink_config_dfu_reboot");
+    LOGD("start");
     return TRUE;
 }
 
@@ -248,6 +329,8 @@ fu_telink_config_write_firmware(FuDevice *device, FuFirmware *firmware, FuProgre
     g_autofree gchar *image_id = NULL;
     g_autoptr(GBytes) blob = NULL;
     g_autoptr(FuTelinkConfigDfuInfo) dfu_info = g_new0(FuTelinkConfigDfuInfo, 1);
+
+    LOGD("start");
 
     /* select correct firmware per target board, bootloader and bank */
     image_id = g_strdup_printf("%s_%s_bank%01u", self->board_name, self->bl_name, self->flash_area_id);
@@ -313,6 +396,8 @@ fu_telink_config_class_init(FuTelinkConfigClass *klass)
 static void
 fu_telink_config_init(FuTelinkConfig *self)
 {
+    LOGD("start");
+
     self->modules = g_ptr_array_new_with_free_func((GDestroyNotify)fu_telink_config_module_free);
 
     fu_device_set_vendor(FU_DEVICE(self), "Telink");
@@ -321,7 +406,7 @@ fu_telink_config_init(FuTelinkConfig *self)
     fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_TRIPLET); //0xCCDD.BB.AA
     fu_device_add_protocol(FU_DEVICE(self), "com.telink.dfu"); //todo: what for?
     fu_device_retry_set_delay(FU_DEVICE(self), FU_TELINK_CONFIG_RETRY_INTERVAL);
-    fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_TELINK_FW);
+    fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_TELINK_ARCHIVE);
 }
 
 FuTelinkConfig *

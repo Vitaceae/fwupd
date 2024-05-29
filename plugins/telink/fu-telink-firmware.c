@@ -6,6 +6,7 @@
  */
 
 #include "config.h"
+#include "fu-telink-common.h"
 #include "fu-telink-firmware.h"
 
 typedef struct {
@@ -53,11 +54,18 @@ fu_telink_fw_parse(FuFirmware *firmware, GBytes *fw, guint64 addr_start, guint64
     const guint8 *buf;
     gsize bufsz = 0;
 
+    LOGD("start");
+
     buf = g_bytes_get_data(fw, &bufsz);
     if (buf == NULL) {
         g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE, "unable to get the image binary");
         return FALSE;
     }
+
+    LOGD("\n\nfirmware header=\n%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+        buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
+        buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+
     fu_firmware_add_flag(FU_FIRMWARE(self), FU_FIRMWARE_FLAG_HAS_CHECKSUM);
     priv->crc32 = fu_telink_fw_crc32(buf, bufsz);
 
@@ -80,5 +88,6 @@ fu_telink_fw_class_init(FuTelinkFwClass *klass)
 static void
 fu_telink_fw_init(FuTelinkFw *self)
 {
+    LOGD("start");
     //todo
 }

@@ -10,6 +10,8 @@ shared_module('fu_plugin_telink',
     'fu-plugin-telink.c',
     'fu-telink-config.c',
     'fu-telink-firmware.c',
+    'fu-telink-firmware-beta.c',
+    'fu-telink-firmware-v1.c',
     'fu-telink-archive.c',
   ],
   include_directories : [

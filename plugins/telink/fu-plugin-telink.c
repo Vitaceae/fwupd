@@ -1,8 +1,17 @@
-#include "config.h"
+/* fu-plugin-telink.c
+ *
+ * Copyright (C) 2024 Mike Chang <mike.chang@telink-semi.com>
+ *
+ * SPDX-License-Identifier: LGPL-2.1+
+ */
+
 #include <fwupdplugin.h>
-#include "fu-plugin-vfuncs.h"
+
+#include "fu-telink-common.h"
 #include "fu-telink-config.h"
-#include "fu-telink-firmware.h"
+#include "fu-telink-archive.h"
+#include "fu-telink-firmware-beta.h"
+#include "fu-telink-firmware-v1.h"
 
 static gboolean
 fu_plugin_telink_dev_startup(FuPlugin *plugin, GError **error)
@@ -12,6 +21,8 @@ fu_plugin_telink_dev_startup(FuPlugin *plugin, GError **error)
         return FALSE;
     }
 
+    LOGD("start");
+
     return TRUE;
 }
 
@@ -20,12 +31,15 @@ fu_plugin_telink_dev_init(FuPlugin *plugin)
 {
     FuContext *ctx = fu_plugin_get_context(plugin);
 
+    LOGD("start");
+
     fu_plugin_add_udev_subsystem(plugin, "hidraw");
     fu_plugin_add_device_gtype(plugin, FU_TYPE_TELINK_CONFIG);
-    fu_plugin_add_firmware_gtype(plugin, NULL, FU_TYPE_TELINK_FW);
+    fu_plugin_add_firmware_gtype(plugin, NULL, FU_TYPE_TELINK_ARCHIVE);
+    fu_plugin_add_firmware_gtype(plugin, NULL, FU_TYPE_TELINK_FW_BETA);
+    fu_plugin_add_firmware_gtype(plugin, NULL, FU_TYPE_TELINK_FW_V1);
     fu_context_add_quirk_key(ctx, "TelinkBootType");
-
-    g_debug("telink-plugin-init");
+    fu_context_add_quirk_key(ctx, "TelinkBoardType");
 }
 
 void
