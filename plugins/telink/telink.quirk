@@ -1,13 +1,13 @@
 # 8278 dongle beta test
 [HIDRAW\VEN_248A&DEV_881D]
 Plugin = telink
-GType = FuTelinkConfig
+GType = FuTelinkHidDev
 TelinkBootType = beta
 TelinkBoardType = tlsr8278
 
 # dummy device holder
 [HIDRAW\VEN_1234&DEV_5678]
 Plugin = nordic_hid
-GType = FuTelinkConfig
+GType = FuTelinkHidDev
 TelinkBootType = otav1
 TelinkBoardType = tlsr8278

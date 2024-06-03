@@ -8,7 +8,7 @@ shared_module('fu_plugin_telink',
   fu_hash,
   sources : [
     'fu-plugin-telink.c',
-    'fu-telink-config.c',
+    'fu-telink-hid-dev.c',
     'fu-telink-firmware.c',
     'fu-telink-firmware-beta.c',
     'fu-telink-firmware-v1.c',
