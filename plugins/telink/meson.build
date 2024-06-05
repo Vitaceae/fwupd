@@ -29,3 +29,31 @@ shared_module('fu_plugin_telink',
     fwupdplugin,
   ],
 )
+
+#if get_option('bluez')
+shared_module('fu_plugin_telink_ble',
+  fu_hash,
+  sources : [
+    'fu-plugin-telink-ble.c',
+    'fu-telink-ble-dev.c',
+    'fu-telink-firmware.c',
+    'fu-telink-firmware-beta.c',
+    'fu-telink-firmware-v1.c',
+    'fu-telink-archive.c',
+  ],
+  include_directories : [
+    root_incdir,
+    fwupd_incdir,
+    fwupdplugin_incdir,
+  ],
+  install : true,
+  install_dir: plugin_dir,
+  dependencies : [
+    plugin_deps,
+  ],
+  link_with : [
+    fwupd,
+    fwupdplugin,
+  ],
+)
+#endif
