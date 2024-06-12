@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2024 Mike Chang <mike.chang@telink-semi.com>
+ * Copyright 2024 Mike Chang <mike.chang@telink-semi.com>
  *
- * SPDX-License-Identifier: LGPL-2.1+
+ * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
 #include "config.h"
@@ -161,7 +161,7 @@ fu_telink_hid_dev_get_hwid(FuTelinkHidDev *self, GError **error)
     guint8 hw_id[TELINK_HWID_LEN] = {0};
     g_autoptr(FuTelinkHidDevMsg) res = g_new0(FuTelinkHidDevMsg, 1);
 
-    //todo: communicate with devcie via HID protocol to get info?
+    // todo: communicate with device via HID protocol to get info?
     if (!fu_telink_hid_dev_cmd_send(...)) {
         return FALSE;
     }

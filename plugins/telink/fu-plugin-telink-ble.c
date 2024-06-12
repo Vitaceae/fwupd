@@ -1,8 +1,10 @@
 /*
- * Copyright (C) 2024 Mike Chang <mike.chang@telink-semi.com>
+ * Copyright 2024 Mike Chang <mike.chang@telink-semi.com>
  *
- * SPDX-License-Identifier: LGPL-2.1+
+ * SPDX-License-Identifier: LGPL-2.1-or-later
  */
+
+#include "config.h"
 
 #include <fwupdplugin.h>
 
@@ -26,4 +28,3 @@ fu_plugin_init_vfuncs(FuPluginVfuncs *vfuncs)
     vfuncs->build_hash = FU_BUILD_HASH;
     vfuncs->init = fu_plugin_telink_dev_init;
 }
-
