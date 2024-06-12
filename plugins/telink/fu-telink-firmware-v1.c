@@ -1,5 +1,4 @@
-/* fu-telink-firmware-v1.c
- *
+/*
  * Copyright (C) 2024 Mike Chang <mike.chang@telink-semi.com>
  *
  * SPDX-License-Identifier: LGPL-2.1+
