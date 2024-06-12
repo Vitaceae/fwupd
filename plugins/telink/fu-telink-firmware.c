@@ -31,8 +31,8 @@ fu_telink_fw_get_checksum(FuFirmware *firmware, GChecksumType csum_kind, GError 
 	FuTelinkFwPrivate *priv = GET_PRIVATE(self);
 	if (!fu_firmware_has_flag(firmware, FU_FIRMWARE_FLAG_HAS_CHECKSUM)) {
 		g_set_error_literal(error,
-				    G_IO_ERROR,
-				    G_IO_ERROR_NOT_SUPPORTED,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_NOT_SUPPORTED,
 				    "unable to calculate the checksum of the update binary");
 		return NULL;
 	}
