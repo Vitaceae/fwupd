@@ -8,23 +8,23 @@
 
 #include <fwupdplugin.h>
 
-#include "fu-telink-common.h"
 #include "fu-telink-ble-dev.h"
+#include "fu-telink-common.h"
 
 static void
 fu_plugin_telink_dev_init(FuPlugin *plugin)
 {
-    FuContext *ctx = fu_plugin_get_context(plugin);
+	FuContext *ctx = fu_plugin_get_context(plugin);
 
-    LOGD("start");
+	LOGD("start");
 
-//    fu_plugin_add_udev_subsystem(plugin, "hidraw");
-    fu_plugin_add_device_gtype(plugin, FU_TYPE_TELINK_BLE_DEV);
+	//    fu_plugin_add_udev_subsystem(plugin, "hidraw");
+	fu_plugin_add_device_gtype(plugin, FU_TYPE_TELINK_BLE_DEV);
 }
 
 void
 fu_plugin_init_vfuncs(FuPluginVfuncs *vfuncs)
 {
-    vfuncs->build_hash = FU_BUILD_HASH;
-    vfuncs->init = fu_plugin_telink_dev_init;
+	vfuncs->build_hash = FU_BUILD_HASH;
+	vfuncs->init = fu_plugin_telink_dev_init;
 }
