@@ -12,35 +12,38 @@
 #endif
 
 #include "fu-telink-dfu-archive.h"
-#include "fu-telink-dfu-device.h"
 #include "fu-telink-dfu-firmware.h"
+#include "fu-telink-dfu-hid-device.h"
 #include "fu-telink-dfu-struct.h"
 
 /* this can be set using Flags=example in the quirk file  */
-#define FU_TELINK_DFU_DEVICE_FLAG_EXAMPLE (1 << 0)
+#define FU_TELINK_DFU_HID_DEVICE_FLAG_EXAMPLE (1 << 0)
 
-struct _FuTelinkDfuDevice {
+struct _FuTelinkDfuHidDevice {
 	FuUdevDevice parent_instance;
 	gchar *board_name;
 	gchar *bl_name;
 	guint16 start_addr;
 };
 
-G_DEFINE_TYPE(FuTelinkDfuDevice, fu_telink_dfu_device, FU_TYPE_UDEV_DEVICE)
+G_DEFINE_TYPE(FuTelinkDfuHidDevice, fu_telink_dfu_hid_device, FU_TYPE_UDEV_DEVICE)
 
 #define FU_TELINK_DFU_HID_DEVICE_RETRY_INTERVAL 50  /* ms */
 #define FU_TELINK_DFU_HID_DEVICE_IOCTL_TIMEOUT	500 /* ms */
 
 static void
-fu_telink_dfu_device_to_string(FuDevice *device, guint idt, GString *str)
+fu_telink_dfu_hid_device_to_string(FuDevice *device, guint idt, GString *str)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	fwupd_codec_string_append(str, idt, "BoardName", self->board_name);
 	fwupd_codec_string_append(str, idt, "Bootloader", self->bl_name);
 }
 
 static gboolean
-fu_telink_dfu_device_get_report(FuTelinkDfuDevice *self, guint8 *buf, gsize bufsz, GError **error)
+fu_telink_dfu_hid_device_get_report(FuTelinkDfuHidDevice *self,
+				    guint8 *buf,
+				    gsize bufsz,
+				    GError **error)
 {
 #ifdef HAVE_HIDRAW_H
 	if (!fu_udev_device_ioctl(FU_UDEV_DEVICE(self),
@@ -63,7 +66,10 @@ fu_telink_dfu_device_get_report(FuTelinkDfuDevice *self, guint8 *buf, gsize bufs
 }
 
 static gboolean
-fu_telink_dfu_device_set_report(FuTelinkDfuDevice *self, guint8 *buf, gsize bufsz, GError **error)
+fu_telink_dfu_hid_device_set_report(FuTelinkDfuHidDevice *self,
+				    guint8 *buf,
+				    gsize bufsz,
+				    GError **error)
 {
 #ifdef HAVE_HIDRAW_H
 	if (!fu_udev_device_ioctl(FU_UDEV_DEVICE(self),
@@ -86,9 +92,9 @@ fu_telink_dfu_device_set_report(FuTelinkDfuDevice *self, guint8 *buf, gsize bufs
 }
 
 static gboolean
-fu_telink_dfu_device_detach(FuDevice *device, FuProgress *progress, GError **error)
+fu_telink_dfu_hid_device_detach(FuDevice *device, FuProgress *progress, GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 
 	/* sanity check */
 	if (fu_device_has_flag(device, FWUPD_DEVICE_FLAG_IS_BOOTLOADER)) {
@@ -104,9 +110,9 @@ fu_telink_dfu_device_detach(FuDevice *device, FuProgress *progress, GError **err
 }
 
 static gboolean
-fu_telink_dfu_device_attach(FuDevice *device, FuProgress *progress, GError **error)
+fu_telink_dfu_hid_device_attach(FuDevice *device, FuProgress *progress, GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 
 	/* sanity check */
 	if (!fu_device_has_flag(device, FWUPD_DEVICE_FLAG_IS_BOOTLOADER)) {
@@ -122,32 +128,32 @@ fu_telink_dfu_device_attach(FuDevice *device, FuProgress *progress, GError **err
 }
 
 static gboolean
-fu_telink_dfu_device_reload(FuDevice *device, GError **error)
+fu_telink_dfu_hid_device_reload(FuDevice *device, GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	/* TODO: reprobe the hardware, or delete this vfunc to use ->setup() as a fallback */
 	g_assert(self != NULL);
 	return TRUE;
 }
 
 static gboolean
-fu_telink_dfu_device_probe(FuDevice *device, GError **error)
+fu_telink_dfu_hid_device_probe(FuDevice *device, GError **error)
 {
 	return fu_udev_device_set_physical_id(FU_UDEV_DEVICE(device), "hid", error);
 }
 
 static gboolean
-fu_telink_dfu_device_setup(FuDevice *device, GError **error)
+fu_telink_dfu_hid_device_setup(FuDevice *device, GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 
 	if (0) {
 		g_autoptr(FuStructTelinkDfuHidReport) st_hid =
 		    fu_struct_telink_dfu_hid_report_new();
 		fu_struct_telink_dfu_hid_report_set_report_id(st_hid, 0x99);
-		if (!fu_telink_dfu_device_set_report(self, st_hid->data, st_hid->len, error))
+		if (!fu_telink_dfu_hid_device_set_report(self, st_hid->data, st_hid->len, error))
 			return FALSE;
-		if (!fu_telink_dfu_device_get_report(self, st_hid->data, st_hid->len, error))
+		if (!fu_telink_dfu_hid_device_get_report(self, st_hid->data, st_hid->len, error))
 			return FALSE;
 	}
 
@@ -160,37 +166,37 @@ fu_telink_dfu_device_setup(FuDevice *device, GError **error)
 }
 
 static gboolean
-fu_telink_dfu_device_prepare(FuDevice *device,
-			     FuProgress *progress,
-			     FwupdInstallFlags flags,
-			     GError **error)
+fu_telink_dfu_hid_device_prepare(FuDevice *device,
+				 FuProgress *progress,
+				 FwupdInstallFlags flags,
+				 GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	/* TODO: anything the device has to do before the update starts */
 	g_assert(self != NULL);
 	return TRUE;
 }
 
 static gboolean
-fu_telink_dfu_device_cleanup(FuDevice *device,
-			     FuProgress *progress,
-			     FwupdInstallFlags flags,
-			     GError **error)
+fu_telink_dfu_hid_device_cleanup(FuDevice *device,
+				 FuProgress *progress,
+				 FwupdInstallFlags flags,
+				 GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	/* TODO: anything the device has to do when the update has completed */
 	g_assert(self != NULL);
 	return TRUE;
 }
 
 static FuFirmware *
-fu_telink_dfu_device_prepare_firmware(FuDevice *device,
-				      GInputStream *stream,
-				      FuProgress *progress,
-				      FwupdInstallFlags flags,
-				      GError **error)
+fu_telink_dfu_hid_device_prepare_firmware(FuDevice *device,
+					  GInputStream *stream,
+					  FuProgress *progress,
+					  FwupdInstallFlags flags,
+					  GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	g_autoptr(FuFirmware) firmware = fu_telink_dfu_firmware_new();
 
 	/* TODO: you do not need to use this vfunc if not checking attributes */
@@ -211,10 +217,10 @@ fu_telink_dfu_device_prepare_firmware(FuDevice *device,
 }
 
 static gboolean
-fu_telink_dfu_device_write_blocks(FuTelinkDfuDevice *self,
-				  FuChunkArray *chunks,
-				  FuProgress *progress,
-				  GError **error)
+fu_telink_dfu_hid_device_write_blocks(FuTelinkDfuHidDevice *self,
+				      FuChunkArray *chunks,
+				      FuProgress *progress,
+				      GError **error)
 {
 	/* progress */
 	fu_progress_set_id(progress, G_STRLOC);
@@ -248,13 +254,13 @@ fu_telink_dfu_device_write_blocks(FuTelinkDfuDevice *self,
 }
 
 static gboolean
-fu_telink_dfu_device_write_firmware(FuDevice *device,
-				    FuFirmware *firmware,
-				    FuProgress *progress,
-				    FwupdInstallFlags flags,
-				    GError **error)
+fu_telink_dfu_hid_device_write_firmware(FuDevice *device,
+					FuFirmware *firmware,
+					FuProgress *progress,
+					FwupdInstallFlags flags,
+					GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(FuChunkArray) chunks = NULL;
 
@@ -274,10 +280,10 @@ fu_telink_dfu_device_write_firmware(FuDevice *device,
 	    fu_chunk_array_new_from_stream(stream, self->start_addr, 64 /* block_size */, error);
 	if (chunks == NULL)
 		return FALSE;
-	if (!fu_telink_dfu_device_write_blocks(self,
-					       chunks,
-					       fu_progress_get_child(progress),
-					       error))
+	if (!fu_telink_dfu_hid_device_write_blocks(self,
+						   chunks,
+						   fu_progress_get_child(progress),
+						   error))
 		return FALSE;
 	fu_progress_step_done(progress);
 
@@ -289,12 +295,12 @@ fu_telink_dfu_device_write_firmware(FuDevice *device,
 }
 
 static gboolean
-fu_telink_dfu_device_set_quirk_kv(FuDevice *device,
-				  const gchar *key,
-				  const gchar *value,
-				  GError **error)
+fu_telink_dfu_hid_device_set_quirk_kv(FuDevice *device,
+				      const gchar *key,
+				      const gchar *value,
+				      GError **error)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(device);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(device);
 
 	/* parse value from quirk file */
 	if (g_strcmp0(key, "TelinkDfuBootType") == 0) {
@@ -329,7 +335,7 @@ fu_telink_dfu_device_set_quirk_kv(FuDevice *device,
 }
 
 static void
-fu_telink_dfu_device_set_progress(FuDevice *self, FuProgress *progress)
+fu_telink_dfu_hid_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
@@ -340,7 +346,7 @@ fu_telink_dfu_device_set_progress(FuDevice *self, FuProgress *progress)
 }
 
 static void
-fu_telink_dfu_device_init(FuTelinkDfuDevice *self)
+fu_telink_dfu_hid_device_init(FuTelinkDfuHidDevice *self)
 {
 	self->start_addr = 0x5000;
 	fu_device_set_vendor(FU_DEVICE(self), "Telink");
@@ -355,35 +361,35 @@ fu_telink_dfu_device_init(FuTelinkDfuDevice *self)
 	fu_device_add_internal_flag(FU_DEVICE(self), FU_DEVICE_INTERNAL_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_retry_set_delay(FU_DEVICE(self), FU_TELINK_DFU_HID_DEVICE_RETRY_INTERVAL);
 	fu_device_register_private_flag(FU_DEVICE(self),
-					FU_TELINK_DFU_DEVICE_FLAG_EXAMPLE,
+					FU_TELINK_DFU_HID_DEVICE_FLAG_EXAMPLE,
 					"example");
 }
 
 static void
-fu_telink_dfu_device_finalize(GObject *object)
+fu_telink_dfu_hid_device_finalize(GObject *object)
 {
-	FuTelinkDfuDevice *self = FU_TELINK_DFU_DEVICE(object);
+	FuTelinkDfuHidDevice *self = FU_TELINK_DFU_HID_DEVICE(object);
 	g_free(self->board_name);
 	g_free(self->bl_name);
-	G_OBJECT_CLASS(fu_telink_dfu_device_parent_class)->finalize(object);
+	G_OBJECT_CLASS(fu_telink_dfu_hid_device_parent_class)->finalize(object);
 }
 
 static void
-fu_telink_dfu_device_class_init(FuTelinkDfuDeviceClass *klass)
+fu_telink_dfu_hid_device_class_init(FuTelinkDfuHidDeviceClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuDeviceClass *device_class = FU_DEVICE_CLASS(klass);
-	object_class->finalize = fu_telink_dfu_device_finalize;
-	device_class->to_string = fu_telink_dfu_device_to_string;
-	device_class->probe = fu_telink_dfu_device_probe;
-	device_class->setup = fu_telink_dfu_device_setup;
-	device_class->reload = fu_telink_dfu_device_reload;
-	device_class->prepare = fu_telink_dfu_device_prepare;
-	device_class->cleanup = fu_telink_dfu_device_cleanup;
-	device_class->attach = fu_telink_dfu_device_attach;
-	device_class->detach = fu_telink_dfu_device_detach;
-	device_class->prepare_firmware = fu_telink_dfu_device_prepare_firmware;
-	device_class->write_firmware = fu_telink_dfu_device_write_firmware;
-	device_class->set_quirk_kv = fu_telink_dfu_device_set_quirk_kv;
-	device_class->set_progress = fu_telink_dfu_device_set_progress;
+	object_class->finalize = fu_telink_dfu_hid_device_finalize;
+	device_class->to_string = fu_telink_dfu_hid_device_to_string;
+	device_class->probe = fu_telink_dfu_hid_device_probe;
+	device_class->setup = fu_telink_dfu_hid_device_setup;
+	device_class->reload = fu_telink_dfu_hid_device_reload;
+	device_class->prepare = fu_telink_dfu_hid_device_prepare;
+	device_class->cleanup = fu_telink_dfu_hid_device_cleanup;
+	device_class->attach = fu_telink_dfu_hid_device_attach;
+	device_class->detach = fu_telink_dfu_hid_device_detach;
+	device_class->prepare_firmware = fu_telink_dfu_hid_device_prepare_firmware;
+	device_class->write_firmware = fu_telink_dfu_hid_device_write_firmware;
+	device_class->set_quirk_kv = fu_telink_dfu_hid_device_set_quirk_kv;
+	device_class->set_progress = fu_telink_dfu_hid_device_set_progress;
 }
