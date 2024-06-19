@@ -6,6 +6,7 @@
 
 #include "config.h"
 
+#include "fu-telink-dfu-common.h"
 #include "fu-telink-dfu-archive.h"
 #include "fu-telink-dfu-ble-device.h"
 #include "fu-telink-dfu-firmware.h"
@@ -31,6 +32,8 @@ fu_telink_dfu_ble_device_to_string(FuDevice *device, guint idt, GString *str)
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
 	fwupd_codec_string_append(str, idt, "BoardName", self->board_name);
 	fwupd_codec_string_append(str, idt, "Bootloader", self->bl_name);
+
+	LOGD("BoardName=%s,Bootloader=%s", self->board_name, self->bl_name);
 }
 
 static gboolean
@@ -205,7 +208,7 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
 	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(FuChunkArray) chunks = NULL;
-
+LOGD("start");
 	/* progress */
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
@@ -324,12 +327,16 @@ fu_telink_dfu_ble_device_class_init(FuTelinkDfuBleDeviceClass *klass)
 	device_class->to_string = fu_telink_dfu_ble_device_to_string;
 	device_class->probe = fu_telink_dfu_ble_device_probe;
 	device_class->setup = fu_telink_dfu_ble_device_setup;
+#if 1 //todo
 	device_class->reload = fu_telink_dfu_ble_device_reload;
 	device_class->prepare = fu_telink_dfu_ble_device_prepare;
+#endif
 	device_class->cleanup = fu_telink_dfu_ble_device_cleanup;
+#if 0 //todo
 	device_class->attach = fu_telink_dfu_ble_device_attach;
 	device_class->detach = fu_telink_dfu_ble_device_detach;
 	device_class->prepare_firmware = fu_telink_dfu_ble_device_prepare_firmware;
+#endif
 	device_class->write_firmware = fu_telink_dfu_ble_device_write_firmware;
 	device_class->set_quirk_kv = fu_telink_dfu_ble_device_set_quirk_kv;
 	device_class->set_progress = fu_telink_dfu_ble_device_set_progress;

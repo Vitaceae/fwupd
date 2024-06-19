@@ -10,6 +10,7 @@
 
 #include "fu-telink-dfu-firmware.h"
 #include "fu-telink-dfu-struct.h"
+#include "fu-telink-dfu-common.h"
 
 struct _FuTelinkDfuFirmware {
 	FuFirmware parent_instance;
@@ -25,6 +26,7 @@ static void
 fu_telink_dfu_firmware_export(FuFirmware *firmware, FuFirmwareExportFlags flags, XbBuilderNode *bn)
 {
 	FuTelinkDfuFirmware *self = FU_TELINK_DFU_FIRMWARE(firmware);
+LOGD("start");
 	fu_xmlb_builder_insert_kx(bn, "crc32", self->crc32);
 }
 
@@ -33,6 +35,7 @@ fu_telink_dfu_firmware_build(FuFirmware *firmware, XbNode *n, GError **error)
 {
 	FuTelinkDfuFirmware *self = FU_TELINK_DFU_FIRMWARE(firmware);
 	guint64 tmp;
+LOGD("start");
 
 	/* TODO: load from .builder.xml */
 	tmp = xb_node_query_text_as_uint(n, "crc32", NULL);
@@ -46,6 +49,7 @@ fu_telink_dfu_firmware_build(FuFirmware *firmware, XbNode *n, GError **error)
 static gboolean
 fu_telink_dfu_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
+LOGD("start");
 	return fu_struct_telink_dfu_hdr_validate_stream(stream, offset, error);
 }
 
@@ -53,6 +57,7 @@ static FuStructTelinkDfuHdr *
 fu_telink_dfu_firmware_parse_stream(GInputStream *stream, gsize offset, GError **error)
 {
 	g_autoptr(FuStructTelinkDfuHdr) st_hdr = NULL;
+LOGD("start");
 
 	st_hdr = fu_struct_telink_dfu_hdr_parse_stream(stream, offset, error);
 	if (st_hdr == NULL)
@@ -81,6 +86,7 @@ fu_telink_dfu_firmware_parse(FuFirmware *firmware,
 	guint32 version_raw;
 	g_autofree gchar *version = NULL;
 	g_autoptr(FuStructTelinkDfuHdr) st_hdr = NULL;
+LOGD("start");
 
 	/* calculate checksum of entire image */
 	if (!fu_input_stream_compute_crc32(stream, &self->crc32, 0xEDB88320, error))
@@ -111,6 +117,7 @@ fu_telink_dfu_firmware_write(FuFirmware *firmware, GError **error)
 	//	FuTelinkDfuFirmware *self = FU_TELINK_DFU_FIRMWARE(firmware);
 	g_autoptr(FuStructTelinkDfuHdr) st_hdr = fu_struct_telink_dfu_hdr_new();
 	g_autoptr(GBytes) fw = NULL;
+LOGD("start");
 
 	/* header */
 	fu_struct_telink_dfu_hdr_set_magic(st_hdr, TELINK_IMAGE_MAGIC_1);
@@ -132,12 +139,14 @@ guint32
 fu_telink_dfu_firmware_get_crc32(FuTelinkDfuFirmware *self)
 {
 	g_return_val_if_fail(FU_IS_TELINK_DFU_FIRMWARE(self), G_MAXUINT16);
+LOGD("start");
 	return self->crc32;
 }
 
 static void
 fu_telink_dfu_firmware_init(FuTelinkDfuFirmware *self)
 {
+LOGD("start");
 	//	fu_firmware_add_flag(FU_FIRMWARE(self), FU_FIRMWARE_FLAG_HAS_STORED_SIZE);
 	fu_firmware_add_flag(FU_FIRMWARE(self), FU_FIRMWARE_FLAG_HAS_CHECKSUM);
 	//	fu_firmware_add_flag(FU_FIRMWARE(self), FU_FIRMWARE_FLAG_HAS_VID_PID);
@@ -146,6 +155,7 @@ fu_telink_dfu_firmware_init(FuTelinkDfuFirmware *self)
 static void
 fu_telink_dfu_firmware_class_init(FuTelinkDfuFirmwareClass *klass)
 {
+LOGD("start");
 	FuFirmwareClass *firmware_class = FU_FIRMWARE_CLASS(klass);
 	firmware_class->validate = fu_telink_dfu_validate;
 	firmware_class->parse = fu_telink_dfu_firmware_parse;
@@ -157,5 +167,6 @@ fu_telink_dfu_firmware_class_init(FuTelinkDfuFirmwareClass *klass)
 FuFirmware *
 fu_telink_dfu_firmware_new(void)
 {
+LOGD("start");
 	return FU_FIRMWARE(g_object_new(FU_TYPE_TELINK_DFU_FIRMWARE, NULL));
 }

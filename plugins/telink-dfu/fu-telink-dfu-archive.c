@@ -8,6 +8,20 @@
 
 #include "fu-telink-dfu-archive.h"
 #include "fu-telink-dfu-firmware.h"
+#include "fu-telink-dfu-common.h"
+
+#if DEBUG_ARCHIVE == 1
+static gboolean
+iter_archive_callback(FuArchive *archive,
+		      const gchar *filename,
+		      GBytes *bytes,
+		      gpointer user_data,
+		      GError **error)
+{
+	LOGD("found %s", filename);
+	return TRUE;
+}
+#endif
 
 struct _FuTelinkDfuArchive {
 	FuFirmware parent_instance;
@@ -111,6 +125,9 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 	g_autoptr(FuArchive) archive = NULL;
 	g_autoptr(GBytes) manifest = NULL;
 	g_autoptr(JsonParser) parser = json_parser_new();
+#if DEBUG_ARCHIVE == 1
+	gboolean ret;
+#endif
 
 	// 1. load archive
 	archive = fu_archive_new_stream(stream, FU_ARCHIVE_FLAG_IGNORE_PATH, error);
@@ -132,6 +149,13 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 		+ "modtime"
 	    + "name"
 	*/
+#if DEBUG_ARCHIVE == 1
+	ret = fu_archive_iterate(archive, iter_archive_callback, NULL, error);
+	if (!ret) {
+		// todo
+	}
+#endif
+
 	manifest = fu_archive_lookup_by_fn(archive, "manifest.json", error);
 	if (manifest == NULL)
 		return FALSE;
@@ -166,6 +190,7 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 				    "unsupported manifest version");
 		return FALSE;
 	}
+	LOGD("manifest_ver=%s", manifest_ver);
 
 	/* get files */
 	json_files = json_object_get_array_member(json_obj, "files");
