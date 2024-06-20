@@ -6,10 +6,17 @@
 
 #include "config.h"
 
+#include "fu-telink-dfu-common.h"
 #include "fu-telink-dfu-archive.h"
 #include "fu-telink-dfu-ble-device.h"
 #include "fu-telink-dfu-firmware.h"
 #include "fu-telink-dfu-struct.h"
+
+#define DEBUG_GATT_CHAR_RW	1
+#if DEBUG_GATT_CHAR_RW == 1
+#define UUID_BATT_LEVEL	"00002a19-0000-1000-8000-00805f9b34fb"
+#define UUID_PNP_ID 	"00002a50-0000-1000-8000-00805f9b34fb"
+#endif
 
 /* this can be set using Flags=example in the quirk file  */
 #define FU_TELINK_DFU_BLE_DEVICE_FLAG_EXAMPLE (1 << 0)
@@ -31,8 +38,13 @@ fu_telink_dfu_ble_device_to_string(FuDevice *device, guint idt, GString *str)
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
 	fwupd_codec_string_append(str, idt, "BoardName", self->board_name);
 	fwupd_codec_string_append(str, idt, "Bootloader", self->bl_name);
+
+	LOGD("BoardName=%s,Bootloader=%s", self->board_name, self->bl_name);
 }
 
+#if DEVEL_STAGE_IGNORED == 1
+	//todo: not used
+#else
 static gboolean
 fu_telink_dfu_ble_device_detach(FuDevice *device, FuProgress *progress, GError **error)
 {
@@ -68,6 +80,7 @@ fu_telink_dfu_ble_device_attach(FuDevice *device, FuProgress *progress, GError *
 	fu_device_add_flag(device, FWUPD_DEVICE_FLAG_WAIT_FOR_REPLUG);
 	return TRUE;
 }
+#endif //DEVEL_STAGE_IGNORED
 
 static gboolean
 fu_telink_dfu_ble_device_reload(FuDevice *device, GError **error)
@@ -109,8 +122,28 @@ fu_telink_dfu_ble_device_prepare(FuDevice *device,
 				 GError **error)
 {
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
+	g_autoptr(GByteArray)buf1 = g_byte_array_new();
+	g_autoptr(GByteArray)buf2 = g_byte_array_new();
+
 	/* TODO: anything the device has to do before the update starts */
 	g_assert(self != NULL);
+
+
+#if DEBUG_GATT_CHAR_RW == 1
+	buf1 = fu_bluez_device_read(FU_BLUEZ_DEVICE(self), UUID_BATT_LEVEL, error);
+	if (buf1) {
+		for (guint i = 0; i < buf1->len; i++) {
+			LOGD("BATT:0x%x", buf1->data[i]);
+		}
+	}
+	buf2 = fu_bluez_device_read(FU_BLUEZ_DEVICE(self), UUID_PNP_ID, error);
+	if (buf2) {
+		for (guint i = 0; i < buf2->len; i++) {
+			LOGD("PNP:0x%x", buf2->data[i]);
+		}
+	}
+#endif
+
 	return TRUE;
 }
 
@@ -126,6 +159,9 @@ fu_telink_dfu_ble_device_cleanup(FuDevice *device,
 	return TRUE;
 }
 
+#if DEVEL_STAGE_IGNORED == 1
+	//todo: not used
+#else
 static FuFirmware *
 fu_telink_dfu_ble_device_prepare_firmware(FuDevice *device,
 					  GInputStream *stream,
@@ -152,6 +188,7 @@ fu_telink_dfu_ble_device_prepare_firmware(FuDevice *device,
 		return NULL;
 	return g_steal_pointer(&firmware);
 }
+#endif //DEVEL_STAGE_IGNORED
 
 static gboolean
 fu_telink_dfu_ble_device_write_blocks(FuTelinkDfuBleDevice *self,
@@ -327,9 +364,13 @@ fu_telink_dfu_ble_device_class_init(FuTelinkDfuBleDeviceClass *klass)
 	device_class->reload = fu_telink_dfu_ble_device_reload;
 	device_class->prepare = fu_telink_dfu_ble_device_prepare;
 	device_class->cleanup = fu_telink_dfu_ble_device_cleanup;
+#if DEVEL_STAGE_IGNORED == 1
+	//todo: not used
+#else
 	device_class->attach = fu_telink_dfu_ble_device_attach;
 	device_class->detach = fu_telink_dfu_ble_device_detach;
 	device_class->prepare_firmware = fu_telink_dfu_ble_device_prepare_firmware;
+#endif
 	device_class->write_firmware = fu_telink_dfu_ble_device_write_firmware;
 	device_class->set_quirk_kv = fu_telink_dfu_ble_device_set_quirk_kv;
 	device_class->set_progress = fu_telink_dfu_ble_device_set_progress;

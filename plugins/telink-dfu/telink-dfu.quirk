@@ -6,11 +6,13 @@ TelinkDfuBootType = beta
 TelinkDfuBoardType = tlsr8278
 
 # 8266 mouse beta test
-[HIDRAW\VEN_248A&DEV_8266]
-Plugin = telink_dfu
-GType = FuTelinkDfuHidDevice
+#[HIDRAW\VEN_248A&DEV_8266]
+#Plugin = telink_dfu
+#GType = FuTelinkDfuHidDevice
 
 # 8266 mouse beta test
 [BLUETOOTH\VID_248A&PID_8266]
 Plugin = telink_dfu
 GType = FuTelinkDfuBleDevice
+TelinkDfuBootType = beta
+TelinkDfuBoardType = tlsr8278

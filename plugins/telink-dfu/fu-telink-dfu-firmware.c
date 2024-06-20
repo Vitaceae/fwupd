@@ -10,6 +10,7 @@
 
 #include "fu-telink-dfu-firmware.h"
 #include "fu-telink-dfu-struct.h"
+#include "fu-telink-dfu-common.h"
 
 struct _FuTelinkDfuFirmware {
 	FuFirmware parent_instance;
@@ -46,9 +47,17 @@ fu_telink_dfu_firmware_build(FuFirmware *firmware, XbNode *n, GError **error)
 static gboolean
 fu_telink_dfu_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
+#if DEVEL_STAGE_IGNORED == 1
+	//todo
+	return TRUE;
+#else
 	return fu_struct_telink_dfu_hdr_validate_stream(stream, offset, error);
+#endif
 }
 
+#if DEVEL_STAGE_IGNORED == 1
+	//todo: not used
+#else
 static FuStructTelinkDfuHdr *
 fu_telink_dfu_firmware_parse_stream(GInputStream *stream, gsize offset, GError **error)
 {
@@ -68,6 +77,7 @@ fu_telink_dfu_firmware_parse_stream(GInputStream *stream, gsize offset, GError *
 	}
 	return g_steal_pointer(&st_hdr);
 }
+#endif //DEVEL_STAGE_IGNORED
 
 static gboolean
 fu_telink_dfu_firmware_parse(FuFirmware *firmware,
@@ -76,12 +86,19 @@ fu_telink_dfu_firmware_parse(FuFirmware *firmware,
 			     FwupdInstallFlags flags,
 			     GError **error)
 {
+#if DEVEL_STAGE_IGNORED == 1
+#else
 	FuTelinkDfuFirmware *self = FU_TELINK_DFU_FIRMWARE(firmware);
 	guint32 hdr_offset[5] = {0x0000, 0x0200, 0x400, 0x800, 0x1000};
 	guint32 version_raw;
 	g_autofree gchar *version = NULL;
 	g_autoptr(FuStructTelinkDfuHdr) st_hdr = NULL;
+#endif
 
+#if DEVEL_STAGE_IGNORED == 1
+	//todo: checksum
+	//todo: Telink firmware image does not contain version info; set it via .json
+#else
 	/* calculate checksum of entire image */
 	if (!fu_input_stream_compute_crc32(stream, &self->crc32, 0xEDB88320, error))
 		return FALSE;
@@ -102,6 +119,8 @@ fu_telink_dfu_firmware_parse(FuFirmware *firmware,
 	version = fu_version_from_uint32(version_raw, FWUPD_VERSION_FORMAT_QUAD);
 	fu_firmware_set_version_raw(firmware, version_raw);
 	fu_firmware_set_version(firmware, version);
+#endif
+
 	return TRUE;
 }
 
