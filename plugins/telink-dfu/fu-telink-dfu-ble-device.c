@@ -36,7 +36,6 @@ G_DEFINE_TYPE(FuTelinkDfuBleDevice, fu_telink_dfu_ble_device, FU_TYPE_BLUEZ_DEVI
 #define CMD_OTA_TEST_RSP	0xff06
 #define CMD_OTA_ERROR		0xff07
 
-#define OTA_CMD_SEQ_DELAY_MS	1
 #define OTA_PREAMBLE_SIZE	2
 #define OTA_PAYLOAD_SIZE	16
 #define OTA_CRC_SIZE		2
@@ -337,7 +336,7 @@ send_dfu_packet(FuTelinkDfuBleDevice *self, DfuBlePkt *pkt, GError **error)
 {
 	gboolean res = TRUE;
 	g_autoptr(GByteArray)buf_write = g_byte_array_new();
-
+guint8 *d;
 	g_byte_array_append (buf_write, pkt->raw, OTA_PREAMBLE_SIZE + OTA_PAYLOAD_SIZE + OTA_CRC_SIZE);
 	res = fu_bluez_device_write(FU_BLUEZ_DEVICE(self), CHAR_UUID_OTA, buf_write, error);
 	if (res != TRUE) {
@@ -355,7 +354,7 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 {
 	const guint8 *raw_data;
 	const guint8 *d;
-	guint32 i;
+	guint32 i = 0;
 	gsize image_len = 0;
 	DfuBlePkt pkt;
 	guint8 payload[OTA_PAYLOAD_SIZE] = {0};
@@ -363,9 +362,10 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 	g_autoptr(GByteArray)buf_read = g_byte_array_new();
 #endif
 	//dummy for now
+	LOGD("OTA Phase: Get Info");
 	create_dfu_packet(&pkt, CMD_OTA_FW_VERSION, NULL);
 	send_dfu_packet(self, &pkt, error);
-	fu_device_sleep(FU_DEVICE(self), OTA_CMD_SEQ_DELAY_MS);
+	fu_device_sleep(FU_DEVICE(self), 5);
 #if 0 //not used for now
 	buf_read = fu_bluez_device_read(FU_BLUEZ_DEVICE(self), CHAR_UUID_OTA, error);
 	if (buf_read) {
@@ -374,29 +374,34 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 #endif
 
 	//1. OTA start command
+	LOGD("OTA Phase: Start");
 	create_dfu_packet(&pkt, CMD_OTA_START, NULL);
 	send_dfu_packet(self, &pkt, error);
-	fu_device_sleep(FU_DEVICE(self), OTA_CMD_SEQ_DELAY_MS);
+	fu_device_sleep(FU_DEVICE(self), 5);
 
 	//2. OTA firmware data
+	LOGD("OTA Phase: Send Data");
 	raw_data = g_bytes_get_data(blob, &image_len);
 	for (i = 0; i < image_len; i += OTA_PAYLOAD_SIZE) {
 		d = raw_data + i;
 		if ((i + OTA_PAYLOAD_SIZE) > image_len) {
-			memcpy(payload, d, i % OTA_PAYLOAD_SIZE);
-			create_dfu_packet(&pkt, (guint16)(i >> 4) + 1, payload);
+			memcpy(payload, d, image_len - i);
+			create_dfu_packet(&pkt, (guint16)(i >> 4), payload);
 		} else {
 			create_dfu_packet(&pkt, (guint16)(i >> 4), d);
 		}
 		send_dfu_packet(self, &pkt, error);
-		//the delay causes write failure
-		fu_device_sleep(FU_DEVICE(self), OTA_CMD_SEQ_DELAY_MS);
+		fu_device_sleep(FU_DEVICE(self), 5);
 	}
+	LOGD("OTA Phase: Data Sent; total=0x%04x", (i >> 4) - 1);
 
 	//3. OTA stop command
+	LOGD("OTA Phase: End");
+	fu_device_sleep(FU_DEVICE(self), 5);
 	create_dfu_packet(&pkt, CMD_OTA_END, NULL);
 	send_dfu_packet(self, &pkt, error);
-	fu_device_sleep(FU_DEVICE(self), OTA_CMD_SEQ_DELAY_MS);
+
+	LOGD("OTA Phase: Success");
 
 	/* success */
 	return TRUE;
@@ -428,7 +433,7 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 
 	/* progress */
 	fu_progress_set_id(progress, G_STRLOC);
-	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+//	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, NULL);
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_VERIFY, 0, NULL);
 
@@ -525,7 +530,7 @@ static void
 fu_telink_dfu_ble_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
-	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+//	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
