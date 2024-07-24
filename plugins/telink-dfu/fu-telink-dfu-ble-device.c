@@ -355,7 +355,7 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 	const guint8 *raw_data;
 	const guint8 *d;
 	guint32 i = 0;
-	gsize image_len = 0;
+	gsize image_len = 0, len;
 	DfuBlePkt pkt;
 	guint8 payload[OTA_PAYLOAD_SIZE] = {0};
 #if 0 //not used for now
@@ -385,7 +385,9 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 	for (i = 0; i < image_len; i += OTA_PAYLOAD_SIZE) {
 		d = raw_data + i;
 		if ((i + OTA_PAYLOAD_SIZE) > image_len) {
-			memcpy(payload, d, image_len - i);
+			len = image_len - i;
+			memcpy(payload, d, len);
+			memset(payload + len, 0xff, OTA_PAYLOAD_SIZE - len);
 			create_dfu_packet(&pkt, (guint16)(i >> 4), payload);
 		} else {
 			create_dfu_packet(&pkt, (guint16)(i >> 4), d);
@@ -398,7 +400,14 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 	//3. OTA stop command
 	LOGD("OTA Phase: End");
 	fu_device_sleep(FU_DEVICE(self), 5);
-	create_dfu_packet(&pkt, CMD_OTA_END, NULL);
+	i = (i >> 4) - 1; //last data packet index
+	d = (guint8 *)&i;
+	memset(payload, 0, OTA_PAYLOAD_SIZE);
+	payload[0] = d[0];
+	payload[1] = d[1];
+	payload[2] = ~d[0];
+	payload[3] = ~d[1];
+	create_dfu_packet(&pkt, CMD_OTA_END, payload);
 	send_dfu_packet(self, &pkt, error);
 
 	LOGD("OTA Phase: Success");
