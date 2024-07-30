@@ -350,7 +350,7 @@ fu_telink_dfu_hid_device_init(FuTelinkDfuHidDevice *self)
 {
 	self->start_addr = 0x5000;
 	fu_device_set_vendor(FU_DEVICE(self), "Telink");
-	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_QUAD);
+	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_device_set_remove_delay(FU_DEVICE(self), FU_DEVICE_REMOVE_DELAY_RE_ENUMERATE);
 	fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_TELINK_DFU_ARCHIVE);
 	fu_device_add_protocol(FU_DEVICE(self), "com.telink.dfu");

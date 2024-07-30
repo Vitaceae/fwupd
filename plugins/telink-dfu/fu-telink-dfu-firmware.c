@@ -127,7 +127,7 @@ fu_telink_dfu_firmware_parse(FuFirmware *firmware,
 
 	/* parse version */
 	version_raw = fu_struct_telink_dfu_hdr_get_version(st_hdr);
-	version = fu_version_from_uint32(version_raw, FWUPD_VERSION_FORMAT_QUAD);
+	version = fu_version_from_uint32(version_raw, FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_firmware_set_version_raw(firmware, version_raw);
 	fu_firmware_set_version(firmware, version);
 #endif

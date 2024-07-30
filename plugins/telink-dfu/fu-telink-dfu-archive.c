@@ -127,8 +127,8 @@ fu_telink_dfu_archive_load_file(FuTelinkDfuArchive *self,
 				    "missing param: image_version");
 		return FALSE;
 	}
-	splits = g_strsplit(json_object_get_string_member(obj, "image_version"), ".", 4);
-	if (g_strv_length(splits) < 4) {
+	splits = g_strsplit(json_object_get_string_member(obj, "image_version"), ".", 3);
+	if (g_strv_length(splits) < 3) {
 		g_set_error_literal(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_INVALID_FILE,
@@ -142,12 +142,10 @@ fu_telink_dfu_archive_load_file(FuTelinkDfuArchive *self,
 	fu_strtoull(splits[1], &tmp_u64, 0, G_MAXUINT32, error);
 	priv->version_raw |= (guint32)(tmp_u64 << 16);
 	fu_strtoull(splits[2], &tmp_u64, 0, G_MAXUINT32, error);
-	priv->version_raw |= (guint32)(tmp_u64 << 8);
-	fu_strtoull(splits[3], &tmp_u64, 0, G_MAXUINT32, error);
 	priv->version_raw |= (guint32)tmp_u64;
-	priv->version = fu_version_from_uint32(priv->version_raw, FWUPD_VERSION_FORMAT_QUAD);
-	fu_firmware_set_version_raw(image, priv->version_raw);
-	fu_firmware_set_version(image, priv->version);
+	priv->version = fu_version_from_uint32(priv->version_raw, FWUPD_VERSION_FORMAT_TRIPLET);
+	fu_firmware_set_version_raw(FU_FIRMWARE(self), priv->version_raw);
+	fu_firmware_set_version(FU_FIRMWARE(self), priv->version);
 	LOGD("version_raw=0x%x", priv->version_raw);
 	LOGD("version=%s", priv->version);
 
@@ -181,20 +179,6 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 		return FALSE;
 
 	// 2. parse manifest.json
-	/*
-	    + "format-version"
-	    + "time"
-	    + "files"
-		+ "version"
-		+ "type"
-		+ "board"
-		+ "soc"
-		+ "load_address"
-		+ "size"
-		+ "file"
-		+ "modtime"
-	    + "name"
-	*/
 #if DEBUG_ARCHIVE == 1
 	ret = fu_archive_iterate(archive, iter_archive_callback, NULL, error);
 	if (!ret) {

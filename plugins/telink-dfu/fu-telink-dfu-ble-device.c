@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
+#include <stdio.h>
 #include "config.h"
 
 #include "fu-telink-dfu-common.h"
@@ -336,7 +337,7 @@ send_dfu_packet(FuTelinkDfuBleDevice *self, DfuBlePkt *pkt, GError **error)
 {
 	gboolean res = TRUE;
 	g_autoptr(GByteArray)buf_write = g_byte_array_new();
-guint8 *d;
+
 	g_byte_array_append (buf_write, pkt->raw, OTA_PREAMBLE_SIZE + OTA_PAYLOAD_SIZE + OTA_CRC_SIZE);
 	res = fu_bluez_device_write(FU_BLUEZ_DEVICE(self), CHAR_UUID_OTA, buf_write, error);
 	if (res != TRUE) {
@@ -358,20 +359,11 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 	gsize image_len = 0, len;
 	DfuBlePkt pkt;
 	guint8 payload[OTA_PAYLOAD_SIZE] = {0};
-#if 0 //not used for now
-	g_autoptr(GByteArray)buf_read = g_byte_array_new();
-#endif
 	//dummy for now
 	LOGD("OTA Phase: Get Info");
 	create_dfu_packet(&pkt, CMD_OTA_FW_VERSION, NULL);
 	send_dfu_packet(self, &pkt, error);
 	fu_device_sleep(FU_DEVICE(self), 5);
-#if 0 //not used for now
-	buf_read = fu_bluez_device_read(FU_BLUEZ_DEVICE(self), CHAR_UUID_OTA, error);
-	if (buf_read) {
-		//todo
-	}
-#endif
 
 	//1. OTA start command
 	LOGD("OTA Phase: Start");
@@ -417,6 +409,51 @@ fu_telink_dfu_ble_device_write_packets(FuTelinkDfuBleDevice *self,
 }
 #endif //DFU_WRITE_METHOD
 
+static guint32
+convert_fw_rev_to_uint(const gchar *version)
+{
+	gint rc;
+	guint32 v_major, v_minor, v_patch;
+
+	if (!version) {
+		//revision not available; forced update
+		LOGD("null string");
+		return 0;
+	}
+
+	/* version format: aa.bb.cc */
+	rc = sscanf(version, "%u.%u.%u", &v_major, &v_minor, &v_patch);
+	if (rc != 3 || v_major > 999 || v_minor > 999 || v_patch > 999) {
+		//invalid version format; forced update
+		LOGD("invalid string: %s", version);
+		return 0;
+	}
+
+	return (v_major << 24) | (v_minor << 16) | v_patch;
+}
+
+static gboolean
+check_device_firmware_revision(FuTelinkDfuBleDevice *self,
+					FuFirmware *firmware,
+					GError **error)
+{
+	gchar *fw_ver = "\0", *device_fw_ver = "\0";
+	guint32 fw_ver_raw = 0, device_fw_ver_raw = 0;
+
+	fw_ver = fu_firmware_get_version(firmware);
+	fw_ver_raw = fu_firmware_get_version_raw(firmware);
+
+	device_fw_ver = fu_bluez_device_read_string(FU_BLUEZ_DEVICE(self), CHAR_UUID_FW_REV, error);
+	device_fw_ver_raw = convert_fw_rev_to_uint(device_fw_ver);
+
+	LOGD("device version=%s, fw version=%s", device_fw_ver, fw_ver);
+	LOGD("device version=%u, fw version=%u", device_fw_ver_raw, fw_ver_raw);
+	if (fw_ver_raw <= device_fw_ver_raw)
+		return FALSE;
+
+	return TRUE;
+}
+
 static gboolean
 fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 					FuFirmware *firmware,
@@ -426,7 +463,8 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 {
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
 	g_autoptr(GInputStream) stream = NULL;
-	g_autoptr(GByteArray)buf_read = g_byte_array_new();
+	gchar *fw_ver = "\0", *device_fw_ver = "\0";
+	guint32 fw_ver_raw = 0, device_fw_ver_raw = 0;
 #if DFU_WRITE_METHOD == DFU_WRITE_METHOD_CHUNKS
 	g_autoptr(FuChunkArray) chunks = NULL;
 #endif
@@ -445,6 +483,15 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 //	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, NULL);
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_VERIFY, 0, NULL);
+
+	LOGD("OTA Phase: Compare firmware revision");
+	fw_ver = fu_firmware_get_version(firmware);
+	fw_ver_raw = fu_firmware_get_version_raw(firmware);
+	device_fw_ver = fu_bluez_device_read_string(FU_BLUEZ_DEVICE(self), CHAR_UUID_FW_REV, error);
+	device_fw_ver_raw = convert_fw_rev_to_uint(device_fw_ver);
+	LOGD("device version=%s, fw version=%s", device_fw_ver, fw_ver);
+	if (fw_ver_raw <= device_fw_ver_raw)
+		return FALSE;
 
 	/* get default image */
 	stream = fu_firmware_get_stream(firmware, error);
@@ -468,7 +515,6 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 	if (archive == NULL)
 		return FALSE;
 
-//	blob = fu_input_stream_read_bytes(stream, 0, G_MAXSIZE, error);
 	blob = fu_archive_lookup_by_fn(archive, filename, error);
 	if (blob == NULL) {
 		return FALSE;
@@ -488,7 +534,13 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 #endif
 	fu_progress_step_done(progress);
 
-	/* TODO: verify each block */
+	/* verify each block */
+	fu_device_sleep(FU_DEVICE(self), 300);
+	device_fw_ver = fu_bluez_device_read_string(FU_BLUEZ_DEVICE(self), CHAR_UUID_FW_REV, error);
+	device_fw_ver_raw = convert_fw_rev_to_uint(device_fw_ver);
+	if (device_fw_ver_raw != fw_ver_raw)
+		return FALSE;
+
 	fu_progress_step_done(progress);
 
 	/* success! */
@@ -551,7 +603,7 @@ fu_telink_dfu_ble_device_init(FuTelinkDfuBleDevice *self)
 {
 	self->start_addr = STREAM_START_ADDR;
 	fu_device_set_vendor(FU_DEVICE(self), "Telink");
-	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_QUAD);
+	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_device_set_remove_delay(FU_DEVICE(self), FU_DEVICE_REMOVE_DELAY_RE_ENUMERATE);
 	fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_TELINK_DFU_ARCHIVE);
 	fu_device_add_protocol(FU_DEVICE(self), "com.telink.dfu");
