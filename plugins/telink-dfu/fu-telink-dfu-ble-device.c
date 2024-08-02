@@ -433,28 +433,6 @@ convert_fw_rev_to_uint(const gchar *version)
 }
 
 static gboolean
-check_device_firmware_revision(FuTelinkDfuBleDevice *self,
-					FuFirmware *firmware,
-					GError **error)
-{
-	gchar *fw_ver = "\0", *device_fw_ver = "\0";
-	guint32 fw_ver_raw = 0, device_fw_ver_raw = 0;
-
-	fw_ver = fu_firmware_get_version(firmware);
-	fw_ver_raw = fu_firmware_get_version_raw(firmware);
-
-	device_fw_ver = fu_bluez_device_read_string(FU_BLUEZ_DEVICE(self), CHAR_UUID_FW_REV, error);
-	device_fw_ver_raw = convert_fw_rev_to_uint(device_fw_ver);
-
-	LOGD("device version=%s, fw version=%s", device_fw_ver, fw_ver);
-	LOGD("device version=%u, fw version=%u", device_fw_ver_raw, fw_ver_raw);
-	if (fw_ver_raw <= device_fw_ver_raw)
-		return FALSE;
-
-	return TRUE;
-}
-
-static gboolean
 fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 					FuFirmware *firmware,
 					FuProgress *progress,
@@ -463,7 +441,7 @@ fu_telink_dfu_ble_device_write_firmware(FuDevice *device,
 {
 	FuTelinkDfuBleDevice *self = FU_TELINK_DFU_BLE_DEVICE(device);
 	g_autoptr(GInputStream) stream = NULL;
-	gchar *fw_ver = "\0", *device_fw_ver = "\0";
+	const gchar *fw_ver = "\0", *device_fw_ver = "\0";
 	guint32 fw_ver_raw = 0, device_fw_ver_raw = 0;
 #if DFU_WRITE_METHOD == DFU_WRITE_METHOD_CHUNKS
 	g_autoptr(FuChunkArray) chunks = NULL;
