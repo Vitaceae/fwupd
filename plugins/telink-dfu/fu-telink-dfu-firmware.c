@@ -8,9 +8,9 @@
 
 #include <fwupdplugin.h>
 
+#include "fu-telink-dfu-common.h"
 #include "fu-telink-dfu-firmware.h"
 #include "fu-telink-dfu-struct.h"
-#include "fu-telink-dfu-common.h"
 
 struct _FuTelinkDfuFirmware {
 	FuFirmware parent_instance;
@@ -48,7 +48,7 @@ static gboolean
 fu_telink_dfu_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
 #if DEVEL_STAGE_IGNORED == 1
-	//todo
+	// todo
 	return TRUE;
 #else
 	return fu_struct_telink_dfu_hdr_validate_stream(stream, offset, error);
@@ -56,7 +56,7 @@ fu_telink_dfu_validate(FuFirmware *firmware, GInputStream *stream, gsize offset,
 }
 
 #if DEVEL_STAGE_IGNORED == 1
-	//todo: not used
+// todo: not used
 #else
 static FuStructTelinkDfuHdr *
 fu_telink_dfu_firmware_parse_stream(GInputStream *stream, gsize offset, GError **error)
@@ -77,7 +77,7 @@ fu_telink_dfu_firmware_parse_stream(GInputStream *stream, gsize offset, GError *
 	}
 	return g_steal_pointer(&st_hdr);
 }
-#endif //DEVEL_STAGE_IGNORED
+#endif // DEVEL_STAGE_IGNORED
 
 static gboolean
 fu_telink_dfu_firmware_parse(FuFirmware *firmware,
@@ -102,13 +102,27 @@ fu_telink_dfu_firmware_parse(FuFirmware *firmware,
 	d = g_bytes_get_data(blob, &image_len);
 	LOGD("image_len=%u", image_len);
 	LOGD("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-		 d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
-		 d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
+	     d[0],
+	     d[1],
+	     d[2],
+	     d[3],
+	     d[4],
+	     d[5],
+	     d[6],
+	     d[7],
+	     d[8],
+	     d[9],
+	     d[10],
+	     d[11],
+	     d[12],
+	     d[13],
+	     d[14],
+	     d[15]);
 #endif
 
 #if DEVEL_STAGE_IGNORED == 1
-	//todo: checksum
-	//todo: Telink firmware image does not contain version info; set it via .json
+	// todo: checksum
+	// todo: Telink firmware image does not contain version info; set it via .json
 #else
 	/* calculate checksum of entire image */
 	if (!fu_input_stream_compute_crc32(stream, &self->crc32, 0xEDB88320, error))

@@ -7,8 +7,8 @@
 #include "config.h"
 
 #include "fu-telink-dfu-archive.h"
-#include "fu-telink-dfu-firmware.h"
 #include "fu-telink-dfu-common.h"
+#include "fu-telink-dfu-firmware.h"
 
 #if DEBUG_ARCHIVE == 1
 static gboolean
@@ -32,7 +32,7 @@ typedef struct {
 	gchar *version;
 } FuTelinkDfuArchivePrivate;
 
-//G_DEFINE_TYPE(FuTelinkDfuArchive, fu_telink_dfu_archive, FU_TYPE_FIRMWARE)
+// G_DEFINE_TYPE(FuTelinkDfuArchive, fu_telink_dfu_archive, FU_TYPE_FIRMWARE)
 G_DEFINE_TYPE_WITH_PRIVATE(FuTelinkDfuArchive, fu_telink_dfu_archive, FU_TYPE_FIRMWARE)
 #define GET_PRIVATE(o) (fu_telink_dfu_archive_get_instance_private(o))
 
@@ -178,7 +178,7 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 	if (archive == NULL)
 		return FALSE;
 
-	// 2. parse manifest.json
+		// 2. parse manifest.json
 #if DEBUG_ARCHIVE == 1
 	ret = fu_archive_iterate(archive, iter_archive_callback, NULL, error);
 	if (!ret) {
@@ -190,7 +190,10 @@ fu_telink_dfu_archive_parse(FuFirmware *firmware,
 	if (manifest == NULL)
 		return FALSE;
 
-	if (!json_parser_load_from_data(parser, g_bytes_get_data(manifest, NULL), g_bytes_get_size(manifest), error)) {
+	if (!json_parser_load_from_data(parser,
+					g_bytes_get_data(manifest, NULL),
+					g_bytes_get_size(manifest),
+					error)) {
 		g_prefix_error(error, "manifest not in JSON format: ");
 		return FALSE;
 	}
