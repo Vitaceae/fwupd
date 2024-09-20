@@ -43,3 +43,10 @@ struct FuStructTelinkDfuBlePkt {
     payload: [u8; 16] = 0xFF,
     crc: u16,
 }
+
+#[derive(New, Getters)]
+struct FuStructTelinkDfuHidPkt {
+    preamble: u16,
+    payload: [u8; 16] = 0xFF,
+    crc: u16,
+}
