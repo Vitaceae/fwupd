@@ -88,7 +88,7 @@ fu_telink_dfu_hid_device_write(FuTelinkDfuHidDevice *self,
 	//endpoint 5
 	fu_hid_device_set_ep_addr_out(hid_device, HID_EP_OUT);
 
-	//set feature report: report id 7
+	//set feature report: report id 6
 /**
 10:35:56.683 FuPluginTelinkDfu    intf 0 class=3
 10:35:56.683 FuPluginTelinkDfu    intf 1 class=3
