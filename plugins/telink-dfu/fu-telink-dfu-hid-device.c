@@ -24,7 +24,8 @@ G_DEFINE_TYPE(FuTelinkDfuHidDevice, fu_telink_dfu_hid_device, FU_TYPE_HID_DEVICE
 #define FU_TELINK_DFU_HID_DEVICE_START_ADDR 0x0000
 #define FU_TELINK_DFU_HID_DEVICE_RETRY_DELAY	50 /* ms */
 #define FU_TELINK_DFU_HID_DEVICE_IOCTL_TIMEOUT	500 /* ms */
-#define FU_TELINK_DFU_HID_DEVICE_REPORT_ID		7
+#define FU_TELINK_DFU_HID_DEVICE_REPORT_ID		6
+#define FU_TELINK_DFU_HID_DEVICE_OP_CODE		2
 #define FU_TELINK_DFU_HID_DEVICE_REPORT_TIMEOUT	500 /* ms */
 #define HID_IFACE	2
 #define HID_EP_IN	(0x80 | 4)
@@ -44,10 +45,18 @@ fu_telink_dfu_hid_device_setup(FuDevice *device, GError **error)
 }
 
 static FuStructTelinkDfuHidPkt *
-fu_telink_dfu_hid_device_create_packet(guint16 preamble, const guint8 *buf, gsize bufsz)
+fu_telink_dfu_hid_device_create_packet(FuTelinkDfuCmd cmd, const guint8 *buf, gsize bufsz, GError **error)
 {
 	FuStructTelinkDfuHidPkt *pkt = fu_struct_telink_dfu_hid_pkt_new();
-	fu_struct_telink_dfu_hid_pkt_set_preamble(pkt, preamble);
+	guint8 preamble[6] = {
+		FU_TELINK_DFU_HID_DEVICE_REPORT_ID,
+		FU_TELINK_DFU_HID_DEVICE_OP_CODE,
+		0x3c, //max data length: 60
+		0x00,
+		(guint8)(cmd & 0x00ff),
+		(guint8)(cmd >> 8),
+	};
+	fu_struct_telink_dfu_hid_pkt_set_preamble(pkt, preamble, sizeof(preamble), error);
 	if (buf != NULL)
 		fu_struct_telink_dfu_hid_pkt_set_payload(pkt, buf, bufsz, NULL);
 	fu_struct_telink_dfu_hid_pkt_set_crc(pkt, ~fu_crc16(pkt->data, pkt->len - 2));
@@ -73,7 +82,7 @@ fu_telink_dfu_hid_device_write(FuTelinkDfuHidDevice *self,
 		g_debug("intf %u class=%u", idx, fu_usb_interface_get_class(iface));
 	}
 
-	fu_hid_device_set_interface(hid_device, ifaces->len - 1);
+	fu_hid_device_set_interface(hid_device, ifaces->len);
 	//endpoint 4
 	fu_hid_device_set_ep_addr_in(hid_device, HID_EP_IN);
 	//endpoint 5
@@ -81,15 +90,15 @@ fu_telink_dfu_hid_device_write(FuTelinkDfuHidDevice *self,
 
 	//set feature report: report id 7
 /**
-08:35:45.650 FuPluginTelinkDfu    intf 0 class=3
-08:35:45.650 FuPluginTelinkDfu    intf 1 class=3
-08:35:45.650 FuPluginTelinkDfu    intf 2 class=3
-08:35:45.650 FuHidDevice          HID::SetReport [wValue=0x0307, wIndex=2]:01 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 11 a8
-libusb: error [submit_control_transfer] submiturb failed, errno=16
-08:35:45.650 FuHidDevice          ignoring: USB error: Entity not found [-5]
-08:35:45.651 FuHistory            modifying device telink-hid-device [1f914e619b232dc4da68ec3389b98b20163003a2]
-08:35:45.921 FuHistory            modifying device telink-hid-device [1f914e619b232dc4da68ec3389b98b20163003a2]
-08:35:46.201 FuEngine             failed write-firmware 'failed to SetReport: USB error: Input/Output Error [-1]': FuTelinkDfuHidDevice:
+10:35:56.683 FuPluginTelinkDfu    intf 0 class=3
+10:35:56.683 FuPluginTelinkDfu    intf 1 class=3
+10:35:56.683 FuPluginTelinkDfu    intf 2 class=3
+10:35:56.683 FuHidDevice          HID::SetReport [wValue=0x0206, wIndex=3]:06 02 3c 00 01 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ab b6
+libusb: error [submit_control_transfer] submiturb failed, errno=2
+10:35:56.684 FuHidDevice          ignoring: USB error: Entity not found [-5]
+10:35:56.684 FuHistory            modifying device telink-hid-device [1f914e619b232dc4da68ec3389b98b20163003a2]
+10:35:56.914 FuHistory            modifying device telink-hid-device [1f914e619b232dc4da68ec3389b98b20163003a2]
+10:35:57.091 FuEngine             failed write-firmware 'failed to SetReport: USB error: Input/Output Error [-1]': FuTelinkDfuHidDevice:
   DeviceId:             1f914e619b232dc4da68ec3389b98b20163003a2
   Name:                 telink-hid-device
   Status:               device-write
@@ -101,9 +110,9 @@ libusb: error [submit_control_transfer] submiturb failed, errno=16
   Flags:                updatable|registered|dual-image|unsigned-payload
   Vendor:               Maxxter
   VendorId:             USB:0x248A
-  Version:              2.0
+  Version:              2.11
   VersionFormat:        pair
-  VersionRaw:           0x00000200
+  VersionRaw:           0x0000020b
   Created:              2024-10-23
   Modified:             2024-10-23
   UpdateState:          failed
@@ -116,7 +125,7 @@ libusb: error [submit_control_transfer] submiturb failed, errno=16
   Guid[quirk]:          cee9c5bc-aa12-51eb-a220-d0ef588d7cb2 ← USB\CLASS_03&SUBCLASS_00
   Guid[quirk]:          afa5518d-7c55-51cb-8e1c-bf3b11b67dfa ← USB\CLASS_03&SUBCLASS_00&PROT_00
   PhysicalId:           usb:01:00:03
-  BackendId:            01:2c
+  BackendId:            01:2e
   RemoveDelay:          10000
   AcquiesceDelay:       2500
   GType:                FuTelinkDfuHidDevice
@@ -127,7 +136,7 @@ libusb: error [submit_control_transfer] submiturb failed, errno=16
   InternalFlags:        only-wait-for-replug
   Events:
   BusNum:               0x1
-  DevNum:               0x2c
+  DevNum:               0x2e
   Class:                interface-desc
   Interfaces:
     FuUsbInterface:
@@ -167,7 +176,7 @@ libusb: error [submit_control_transfer] submiturb failed, errno=16
         InterfaceNumber: 0x2
         ExtraData:      CSERASEBIh8A
   InterfaceAutodetect:  false
-  Interface:            0x2
+  Interface:            0x3
   EpAddrIn:             0x84
   EpAddrOut:            0x5
  */
@@ -176,7 +185,7 @@ libusb: error [submit_control_transfer] submiturb failed, errno=16
 					buf,
 					bufsz,
 					FU_TELINK_DFU_HID_DEVICE_REPORT_TIMEOUT,
-					FU_HID_DEVICE_FLAG_IS_FEATURE,
+					FU_HID_DEVICE_FLAG_NONE,
 					error))
 		return FALSE;
 
@@ -209,7 +218,8 @@ fu_telink_dfu_hid_device_write_blocks(FuTelinkDfuHidDevice *self,
 			return FALSE;
 		pkt = fu_telink_dfu_hid_device_create_packet((guint16)i,
 							     fu_chunk_get_data(chk),
-							     fu_chunk_get_data_sz(chk));
+							     fu_chunk_get_data_sz(chk),
+								 error);
 		if (!fu_telink_dfu_hid_device_write(self,
 					   pkt->data,
 					   pkt->len,
@@ -231,7 +241,7 @@ fu_telink_dfu_hid_device_ota_start(FuTelinkDfuHidDevice *self, GError **error)
 {
 	g_autoptr(FuStructTelinkDfuHidPkt) pkt = NULL;
 
-	pkt = fu_telink_dfu_hid_device_create_packet(FU_TELINK_DFU_CMD_OTA_START, NULL, 0);
+	pkt = fu_telink_dfu_hid_device_create_packet(FU_TELINK_DFU_CMD_OTA_START, NULL, 0, error);
 	if (!fu_telink_dfu_hid_device_write(self,
 				   pkt->data,
 				   pkt->len,
@@ -255,7 +265,8 @@ fu_telink_dfu_hid_device_ota_stop(FuTelinkDfuHidDevice *self, guint number_chunk
 	pkt_stop_data[3] = ~pkt_stop_data[1];
 	pkt = fu_telink_dfu_hid_device_create_packet(FU_TELINK_DFU_CMD_OTA_END,
 						     pkt_stop_data,
-						     sizeof(pkt_stop_data));
+						     sizeof(pkt_stop_data),
+							 error);
 	if (!fu_telink_dfu_hid_device_write(self,
 				   pkt->data,
 				   pkt->len,
